@@ -14,10 +14,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	wchar_t szExePath[MAX_PATH]={0};
 	wchar_t szLibFile[MAX_PATH]={0};
-    wchar_t temp[MAX_PATH]={0}; 
+	wchar_t temp[MAX_PATH]={0};
 	
-	STARTUPINFO sinfo={ 0 };
-	PROCESS_INFORMATION pinfo={ 0 };
+	STARTUPINFO sinfo={0};
+	PROCESS_INFORMATION pinfo={0};
 	LPVOID pMem=NULL;
 	size_t cbLen=0;
 	DWORD dwWriten;
@@ -36,8 +36,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	if((GetFileAttributes(szExePath) == INVALID_FILE_ATTRIBUTES))
 	{
 
-		MessageBox(NULL, L"Could not find" EXE_NAME L"Make sure that it actually exists, and try again",
-				   L"File Not Found", MB_ICONERROR | MB_OK);
+		MessageBox(NULL, L"Could not find" EXE_NAME L"Make sure that it actually exists, and try again",\
+				L"File Not Found", MB_ICONERROR | MB_OK);
 		return 1;
 	}
 
@@ -178,15 +178,17 @@ BOOL FileExist(const wchar_t *szFile)
 *  Returns true on success, false otherwise.             *
 *  Type:  BOOL                                           *
 *********************************************************/
-BOOL CreateDir(wchar_t *szPath)
+BOOL CreateDir(const wchar_t *szPath)
 {
 	wchar_t DirName[MAX_PATH]={ 0 };
 	wchar_t *p;
 	wchar_t *q;
 
-	for(p = szPath, q = DirName; *p != '\0'; p++)
+	if(szPath == NULL)
+		return FALSE;
+	for(p = (wchar_t *)szPath, q = DirName; *p != L'\0'; p++)
 	{
-		if(*(p - 1) != ':' && ((*p == '\\') || (*p == '/')))
+		if(*(p - 1) != L':' && ((*p == L'\\') || (*p == L'/')))
 		{
 			// Create a directory if it doesn't exist
 			if(!DirectoryExists(DirName))
@@ -194,11 +196,10 @@ BOOL CreateDir(wchar_t *szPath)
 					return FALSE;
 		}
 		*q++ = *p;
-		*q = '\0';
+		*q = L'\0';
 	}
-	if(!CreateDirectoryW(DirName, NULL))
-		return FALSE;
-	return TRUE;
+
+	return (CreateDirectoryW(DirName, NULL));
 }
 
 /*********************************************************
@@ -220,18 +221,18 @@ BOOL ExtractFromResource(int ResID, LPCWSTR ResType, LPCWSTR FileName)
 
 	hRes = FindResource(hMod, MAKEINTRESOURCE(ResID), ResType);
 	if(hRes != NULL)
-	{   // Load the resource into memory          
+	{   	// Load the resource into memory          
 		hResMem = LoadResource(hMod, hRes);
 		if(hResMem != NULL)
-		{   // Lock the resource into global memory
+		{   	// Lock the resource into global memory
 			pResData = LockResource(hResMem);
 			if(pResData != NULL)
 			{	//Get the size of resource in bytes
 				RsrcSize = SizeofResource(hMod, hRes);
 				if(RsrcSize != 0)
 				{
-					hFile = CreateFileW(FileName, GENERIC_WRITE, 0, NULL,
-										          CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+					hFile = CreateFileW(FileName, GENERIC_WRITE, 0, NULL,\
+						                      CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 					if(hFile != INVALID_HANDLE_VALUE)
 					{
 						WriteFile(hFile, pResData, RsrcSize, &WriteOut, NULL);

@@ -3,7 +3,7 @@ About
 
 DLL Injection using Remote Thread
 
-Usage
+Overview
 =====
 
 Create a process in a suspended state and inject the DLL to target process address space using CreateRemoteThread() Win API routine. The DLL itself is extracted from resource.

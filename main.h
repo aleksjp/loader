@@ -4,7 +4,7 @@
 /* Function prototipes */
 BOOL DirectoryExists(const wchar_t *szPath);
 BOOL FileExist(const wchar_t *szFile);
-BOOL CreateDir(wchar_t *szPath);
+BOOL CreateDir(const wchar_t *szPath);
 BOOL ExtractFromResource(int ResID, LPCWSTR ResType, LPCWSTR FileName);
 
 #endif /* MAIN_H_INC */
