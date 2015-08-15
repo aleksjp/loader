@@ -43,6 +43,7 @@
 				Optimization="0"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS"
 				MinimalRebuild="true"
+				ExceptionHandling="1"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="0"
@@ -61,7 +62,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile="E:\Games\Call of Duty- Modern Warfare 3\Loadiw5mp.exe"
+				OutputFile="$(OutDir)\$(ProjectName).exe"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="2"
@@ -87,8 +88,8 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description="copy /y $(OutDir)\$(ProjectName).exe &quot;E:\Games\Call of Duty- Modern Warfare 3\Loadiw5mp.exe&quot;"
-				CommandLine=""
+				Description=""
+				CommandLine="copy /y $(OutDir)\$(ProjectName).exe &quot;E:\Games\Call of Duty- Modern Warfare 3\Loadiw5mp.exe&quot;"
 			/>
 		</Configuration>
 		<Configuration
@@ -143,6 +144,7 @@
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
+				RandomizedBaseAddress="1"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -165,7 +167,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="copy /y $(OutDir)\$(ProjectName).exe &quot;E:\Games\Call of Duty- Modern Warfare 3\Loader.exe&quot;"
+				CommandLine=""
 			/>
 		</Configuration>
 	</Configurations>
