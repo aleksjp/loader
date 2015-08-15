@@ -12,14 +12,14 @@
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
 
-	wchar_t szExePath[MAX_PATH]={0};
-	wchar_t szLibFile[MAX_PATH]={0};
-	wchar_t temp[MAX_PATH]={0};
-	
-	STARTUPINFO sinfo={0};
-	PROCESS_INFORMATION pinfo={0};
+	wchar_t szExePath[MAX_PATH]={ 0 };
+	wchar_t szLibFile[MAX_PATH]={ 0 };
+	wchar_t temp[MAXLEN]={ 0 };
+
+	STARTUPINFO sinfo={ 0 };
+	PROCESS_INFORMATION pinfo={ 0 };
 	LPVOID pMem=NULL;
-	size_t cbLen=0;
+	DWORD cbLen=0;
 	DWORD dwWriten;
 	HANDLE hProcess=NULL;
 	HANDLE hThread=NULL;
@@ -31,13 +31,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		wcscat_s(szExePath, MAX_PATH, L"\\");
 		wcscat_s(szExePath, MAX_PATH, EXE_NAME);
 	}
-	
+
 	// Check for a file existence
 	if((GetFileAttributes(szExePath) == INVALID_FILE_ATTRIBUTES))
 	{
 
-		MessageBox(NULL, L"Could not find" EXE_NAME L"Make sure that it actually exists, and try again",\
-				L"File Not Found", MB_ICONERROR | MB_OK);
+		DTRACE(L"Could not find " EXE_NAME L"\nMake sure that it actually exists, and try again.",\
+			   L"File Not Found!");
 		return 1;
 	}
 
@@ -45,43 +45,43 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	if(GetCurrentDirectory(MAX_PATH, szLibFile))
 		wcscat_s(szLibFile, MAX_PATH, L"\\devraw\\video");
-	
+
 	if(!DirectoryExists(szLibFile))
-	{		
-		if(!CreateDir(szLibFile))
+	{
+		if(!CreateDirs(szLibFile))
 		{
-			swprintf_s(temp, _countof(temp), L"Could not create %s error %d", szLibFile, GetLastError());
-			MessageBox(NULL, temp, L"Directoy Not Found", MB_ICONERROR | MB_OK);
+			swprintf_s(temp, ARRAY_LEN(temp), L"Could not create %s error %d", szLibFile, GetLastError());
+			DTRACE(temp, L"Directoy not found!");
 			return 1;
 		}
 	}
 
 	wcscat_s(szLibFile, MAX_PATH, L"\\startup.bik");
 	if(!FileExist(szLibFile))
-	{
-		// Extract data from resource and write to a file
+	{	
 		if(!ExtractFromResource(IDR_BIN1, L"BIN", szLibFile))
 		{
-			swprintf_s(temp, _countof(temp), L"Could not extarct data error %d", GetLastError());
-			MessageBox(NULL, temp, L"Extract data error", MB_ICONERROR | MB_OK);
+			swprintf_s(temp, ARRAY_LEN(temp), L"Could not extarct data error %d", GetLastError());
+			DTRACE(temp, L"Extract data Error!");
 			return 1;
 		}
 	}
 
 #endif
-	
+
 	// Build a full path to DLL file	
 	if(GetCurrentDirectory(MAX_PATH, szLibFile))
-		 swprintf_s(szLibFile, _countof(szLibFile), L"%s\\%s", szLibFile, DLL_NAME);
-	
+		swprintf_s(szLibFile, ARRAY_LEN(szLibFile), L"%s\\%s", szLibFile, DLL_NAME);
+
 	// Extract DLL from resource and write to a file
 	if(!ExtractFromResource(IDR_BIN2, L"BIN", szLibFile))
 	{
-		swprintf_s(temp, _countof(temp), L"Could not extract data error %d", GetLastError());
-		MessageBox(NULL, temp, L"Extract Error", MB_ICONERROR | MB_OK);
+		swprintf_s(temp, ARRAY_LEN(temp), L"Could not extract data error %d", GetLastError());
+		DTRACE(temp, L"Extract Dll Error!");
 		return 1;
 	}
-	
+    
+	// Initialize/reset struct to 0
 	memset(&sinfo, 0, sizeof(sinfo));
 	memset(&pinfo, 0, sizeof(pinfo));
 	sinfo.cb = sizeof(sinfo);
@@ -89,26 +89,25 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	// Create procces in suspended state
 	if(FAILED(CreateProcess(szExePath, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &sinfo, &pinfo)))
 	{
-		MessageBox(NULL, L"CreateProcess Failed", L"CreateProcess", MB_ICONERROR | MB_OK);
+		DMSG(CreateProcess Failed, CreateProcess);
 		return 1;
 	}
 
 	// Calculate size needed for the DLL pathname
 	cbLen = (wcslen(szLibFile) + 1) * sizeof(wchar_t);
-	 
 
 	// Allocate space in the remote process for the DLL pathname
 	pMem = VirtualAllocEx(pinfo.hProcess, NULL, cbLen, MEM_COMMIT, PAGE_READWRITE);
 	if(pMem == NULL)
 	{
-		MessageBox(NULL, L"Could not allocate memory for the DLL string!", L"VirtualAllocEx", MB_ICONERROR | MB_OK);
+		DMSG(Could not allocate memory for the DLL string, VirtualAllocEx);
 		return 1;
 	}
 
 	// Copy the DLL pathname to the remote process address space
 	if(!WriteProcessMemory(pinfo.hProcess, pMem, szLibFile, cbLen, &dwWriten))
 	{
-		MessageBox(NULL, L"Could not write remote string!", L"WriteProcessMemory", MB_ICONERROR | MB_OK);
+		DMSG(Could not write remote string!, WriteProcessMemory);
 		return 1;
 	}
 
@@ -116,15 +115,15 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	pfnThread = (PTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandle(L"Kernel32"), "LoadLibraryW");
 	if(pfnThread == NULL)
 	{
-		MessageBox(NULL, L"Could not find address of LoadLibraryW!", L"GetProcAddress", MB_ICONERROR | MB_OK);
+		DMSG(Could not find address of LoadLibraryW!, GetProcAddress);
 		return 1;
 	}
 
-
+	// Create remote thread that calls LoadLibraryW
 	hThread = CreateRemoteThread(pinfo.hProcess, NULL, 0, pfnThread, pMem, 0, NULL);
 	if(hThread == NULL)
 	{
-		MessageBox(NULL, L"Could not start remote thread!", L"Error", MB_ICONERROR | MB_OK);
+		DMSG(Could not start remote thread!, CreateRemoteThread);
 		return 1;
 	}
 
@@ -172,13 +171,13 @@ BOOL FileExist(const wchar_t *szFile)
 	return (_wstat(szFile, &buffer) == 0);
 }
 
- 
+
 /*********************************************************
-*  CreateDir                                             *
+*  CreateDirs                                            *
 *  Returns true on success, false otherwise.             *
 *  Type:  BOOL                                           *
 *********************************************************/
-BOOL CreateDir(const wchar_t *szPath)
+BOOL CreateDirs(const wchar_t *szPath)
 {
 	wchar_t DirName[MAX_PATH]={ 0 };
 	wchar_t *p;
@@ -190,7 +189,6 @@ BOOL CreateDir(const wchar_t *szPath)
 	{
 		if(*(p - 1) != L':' && ((*p == L'\\') || (*p == L'/')))
 		{
-			// Create a directory if it doesn't exist
 			if(!DirectoryExists(DirName))
 				if(!CreateDirectoryW(DirName, NULL))
 					return FALSE;
@@ -207,37 +205,49 @@ BOOL CreateDir(const wchar_t *szPath)
 *  Returns true on success, false otherwise.             *
 *  Type:  BOOL                                           *
 *********************************************************/
-BOOL ExtractFromResource(int ResID, LPCWSTR ResType, LPCWSTR FileName)
+BOOL ExtractFromResource(int ResID, const wchar_t *ResType, const wchar_t *FileName)
 {
 
 	HANDLE hFile=INVALID_HANDLE_VALUE;
 	HMODULE hMod=GetModuleHandle(NULL);
-	size_t WriteOut=0;
-	size_t RsrcSize=0;
+	DWORD WriteOut=0;
+	DWORD RsrcSize=0;
 	HRSRC hRes=NULL;
 	HGLOBAL hResMem=NULL;
 	LPVOID pResData=NULL;
 	BOOL bRet=FALSE;
 
-	hRes = FindResource(hMod, MAKEINTRESOURCE(ResID), ResType);
-	if(hRes != NULL)
-	{   	// Load the resource into memory          
-		hResMem = LoadResource(hMod, hRes);
-		if(hResMem != NULL)
-		{   	// Lock the resource into global memory
-			pResData = LockResource(hResMem);
-			if(pResData != NULL)
-			{	//Get the size of resource in bytes
-				RsrcSize = SizeofResource(hMod, hRes);
-				if(RsrcSize != 0)
-				{
-					hFile = CreateFileW(FileName, GENERIC_WRITE, 0, NULL,\
-						                      CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-					if(hFile != INVALID_HANDLE_VALUE)
+	__try
+	{
+		hRes = FindResource(hMod, MAKEINTRESOURCE(ResID), ResType);
+		if(hRes != NULL)
+		{   
+			// Load the resource into memory          
+			hResMem = LoadResource(hMod, hRes);
+			if(hResMem != NULL)
+			{   
+				// Lock the resource into global memory
+				pResData = LockResource(hResMem);
+				if(pResData != NULL)
+				{	
+					//Get the size of resource in bytes
+					RsrcSize = SizeofResource(hMod, hRes);
+					if(RsrcSize != 0)
 					{
-						WriteFile(hFile, pResData, RsrcSize, &WriteOut, NULL);
-						if(RsrcSize == WriteOut)
-							bRet = TRUE; // success
+						hFile = CreateFileW(FileName, GENERIC_WRITE, 0, NULL,\
+											CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+						if(hFile != INVALID_HANDLE_VALUE)
+						{
+							// Writes data to the file
+							bRet=WriteFile(hFile, pResData, RsrcSize, &WriteOut, NULL);
+							if(bRet && (RsrcSize == WriteOut))
+							{
+								// Clean up resource
+								FreeResource(hResMem);
+								CloseHandle(hFile);								
+							}
+						}
+
 					}
 
 				}
@@ -246,13 +256,33 @@ BOOL ExtractFromResource(int ResID, LPCWSTR ResType, LPCWSTR FileName)
 
 		}
 
-	}
-	// Clean up resource
-	if(hResMem != NULL)
-		FreeResource(hResMem);
-	if(hFile != INVALID_HANDLE_VALUE)
-		CloseHandle(hFile);
+	    }
+
+		__except(EXCEPTION_EXECUTE_HANDLER)
+		{
+			// Exception handling block
+			if(hResMem != NULL) 
+				FreeResource(hResMem); 
+			if(hFile != INVALID_HANDLE_VALUE)
+				CloseHandle(hFile);
+		}
 
 	return bRet;
 }
 
+/*********************************************************
+*  DTRACE                                                *
+*  Returns formated strings to MessageBox.               *
+*  Type:  int                                            *
+*********************************************************/
+int DTRACE(const wchar_t *FmtMsg, const wchar_t *caption, ...)
+{
+	wchar_t buffer[MAXLEN]={ 0 };
+	va_list va;
+
+	va_start(va, FmtMsg);
+	_vsnwprintf_s(buffer, ARRAY_LEN(buffer), _TRUNCATE, FmtMsg, va);
+	va_end(va);
+
+	return MessageBox(NULL, buffer, caption, MB_OK);
+}

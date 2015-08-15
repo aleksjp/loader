@@ -48,6 +48,7 @@
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
+				CompileAs="1"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -86,8 +87,8 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description=""
-				CommandLine="copy /y $(OutDir)\$(ProjectName).exe &quot;E:\Games\Call of Duty- Modern Warfare 3\Loader.exe&quot;"
+				Description="copy /y $(OutDir)\$(ProjectName).exe &quot;E:\Games\Call of Duty- Modern Warfare 3\Loadiw5mp.exe&quot;"
+				CommandLine=""
 			/>
 		</Configuration>
 		<Configuration
@@ -118,11 +119,13 @@
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
+				ExceptionHandling="1"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="3"
+				CompileAs="1"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -162,7 +165,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine=""
+				CommandLine="copy /y $(OutDir)\$(ProjectName).exe &quot;E:\Games\Call of Duty- Modern Warfare 3\Loader.exe&quot;"
 			/>
 		</Configuration>
 	</Configurations>
