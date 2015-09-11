@@ -16,12 +16,14 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	wchar_t szLibFile[MAX_PATH]= { 0 };
 
 	STARTUPINFO sinfo= { 0 };
-	PROCESS_INFORMATION pinfo= { 0 };
+	PROCESS_INFORMATION pinfo;
+	HMODULE hModule;
 	LPVOID pMem=NULL;
 	DWORD cbLen=0;
 	DWORD dwWriten;
+	DWORD dwExitCode;
 	HANDLE hProcess=NULL;
-	HANDLE hThread=NULL;
+	HANDLE hThread=NULL;	
 	PTHREAD_START_ROUTINE pfnThread;
 
 	// Get the current directory and append name of executable
@@ -86,6 +88,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	// Initialize/reset struct to 0
 	memset(&sinfo, 0, sizeof(sinfo));
 	memset(&pinfo, 0, sizeof(pinfo));
+	
 	sinfo.cb = sizeof(sinfo);
 
 	// Create procces in suspended state
@@ -120,7 +123,15 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	}
 
 	// Get the real address of LoadLibraryW in Kernel32.dll
-	pfnThread = (PTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandle(L"Kernel32"), "LoadLibraryW");
+	hModule=GetModuleHandle(L"Kernel32");
+	if(!hModule)
+	{
+#ifdef _DEBUG
+		DMSG(Could not retrieve DLL handle!, GetModuleHandle);
+#endif
+		return 1;
+	}
+	pfnThread = (PTHREAD_START_ROUTINE)GetProcAddress(hModule, "LoadLibraryW");
 	if(pfnThread == NULL)
 	{
 #ifdef _DEBUG
@@ -141,7 +152,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	// Wait for the remote thread to terminate
 	WaitForSingleObject(hThread, INFINITE);
-
+    
+	GetExitCodeThread(hThread, &dwExitCode);
 
 	// Free the remote memory that contained dll pathname
 	if(pMem != NULL)
@@ -242,7 +254,7 @@ BOOL ExtractFromResource(int ResID, const wchar_t* ResType, const wchar_t* FileN
 				pResData = LockResource(hResMem);
 				if(pResData != NULL)
 				{
-					//Get the size of resource in bytes
+					// Get the size of resource in bytes
 					RsrcSize = SizeofResource(hMod, hRes);
 					if(RsrcSize != 0)
 					{
@@ -257,6 +269,7 @@ BOOL ExtractFromResource(int ResID, const wchar_t* ResType, const wchar_t* FileN
 								// Clean up resource
 								FreeResource(hResMem);
 								CloseHandle(hFile);
+								return bRet; // success
 							}
 						}
 
