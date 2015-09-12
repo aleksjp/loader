@@ -4,10 +4,6 @@
 #include "main.h"
 #include "resource.h"
 
-#define BUILD_BIK
-
-#define EXE_NAME L"iw5mp.exe"
-#define DLL_NAME L"steam_api.dll"
 
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
@@ -17,14 +13,17 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	STARTUPINFO sinfo= { 0 };
 	PROCESS_INFORMATION pinfo;
-	HMODULE hModule;
-	LPVOID pMem=NULL;
-	DWORD cbLen=0;
-	DWORD dwWriten;
-	DWORD dwExitCode;
-	HANDLE hProcess=NULL;
-	HANDLE hThread=NULL;	
-	PTHREAD_START_ROUTINE pfnThread;
+
+	BaseErr ret; // Error status
+	int RetValue=0; // Function return value
+	HMODULE hModule; // kernel32 module handle
+	LPVOID pMem=NULL; // Allocated library string and command line parameters
+	DWORD cbLen=0;    // Library string length
+	DWORD dwWriten;   // Number of written bytes
+	DWORD dwExitCode; // Remote thread exit code
+	HANDLE hProcess=NULL; // Process handle
+	HANDLE hThread=NULL; // Remote thread handle
+	PTHREAD_START_ROUTINE pfnThread; // LoadLibraryW address
 
 	// Get the current directory and append name of executable
 	if(GetCurrentDirectory(MAX_PATH, szExePath))
@@ -39,9 +38,14 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 #ifdef _DEBUG
 		DTRACE(L"File Not Found!", L"Could not find " EXE_NAME L"\nMake sure that it actually exists, and try again.");
 #endif
-		return 1;
+		ret=RET_ERROR_FILE;
+		goto end;
 	}
 
+/*
+   That is if we need to create a new directory and file inside it.
+   We can override this preprocessor definition from compiler command line using /DBUILD_BIK flag
+*/
 #ifdef BUILD_BIK
 
 	if(GetCurrentDirectory(MAX_PATH, szLibFile))
@@ -52,9 +56,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		if(!CreateDirs(szLibFile))
 		{
 #ifdef _DEBUG
-			DTRACE(L"Directoy not found!", L"Could not create %s error 0x%x\n", szLibFile, GetLastError());
+			DTRACE(L"Directoy not found!", L"Could not create %s\nlast-error error 0x%x\n", szLibFile, GetLastError());
 #endif
-			return 1;
+			ret=RET_ERROR_DIRECTORY;
+			goto end;
 		}
 	}
 
@@ -64,9 +69,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		if(!ExtractFromResource(IDR_BIN1, L"BIN", szLibFile))
 		{
 #ifdef _DEBUG
-			DTRACE(L"Extract data Error!", L"Could not extarct data error 0x%x\n", GetLastError());
+			DTRACE(L"Extract data Error!", L"Could not extarct data\nlast-error 0x%x\n", GetLastError());
 #endif
-			return 1;
+			ret=RET_ERROR_RESOURCE;
+			goto end;
 		}
 	}
 
@@ -80,9 +86,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	if(!ExtractFromResource(IDR_BIN2, L"BIN", szLibFile))
 	{
 #ifdef _DEBUG
-		DTRACE(L"Extract Dll Error!", L"Could not extract data error 0x%x\n", GetLastError());
+		DTRACE(L"Extract Dll Error!", L"Could not extract data\nlast-error 0x%x\n", GetLastError());
 #endif
-		return 1;
+		ret=RET_ERROR_RESOURCE;
+		goto end;
 	}
 
 	// Initialize/reset struct to 0
@@ -92,12 +99,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	sinfo.cb = sizeof(sinfo);
 
 	// Create procces in suspended state
-	if(FAILED(CreateProcess(szExePath, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &sinfo, &pinfo)))
+	if(!CreateProcess(szExePath, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &sinfo, &pinfo))
 	{
 #ifdef _DEBUG
-		DMSG(CreateProcess Failed!, CreateProcess);
+		DTRACE(L"CreateProcess!", L"CreateProcess failed\nlast-error 0x%x\n", GetLastError());
 #endif
-		return 1;
+		ret=RET_ERROR_CREATE;
+		goto end;
 	}
 
 	// Calculate size needed for the DLL pathname
@@ -108,18 +116,20 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	if(pMem == NULL)
 	{
 #ifdef _DEBUG
-		DMSG(Could not allocate memory for the DLL string!, VirtualAllocEx);
+		DTRACE(L"VirtualAllocEx", L"Could not allocate memory for the DLL string\nlast-error 0x%x\n", GetLastError());
 #endif
-		return 1;
+		ret=RET_ERROR_VALLOC;
+		goto end;
 	}
 
 	// Copy the DLL pathname to the remote process address space
 	if(!WriteProcessMemory(pinfo.hProcess, pMem, szLibFile, cbLen, &dwWriten))
 	{
 #ifdef _DEBUG
-		DMSG(Could not write remote string!, WriteProcessMemory);
+		DTRACE(L"WriteProcessMemory", L"Could not write remote string\nlast-error 0x%x\n", GetLastError());
 #endif
-		return 1;
+		ret=RET_ERROR_WRITE;
+		goto end;
 	}
 
 	// Get the real address of LoadLibraryW in Kernel32.dll
@@ -127,17 +137,19 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	if(!hModule)
 	{
 #ifdef _DEBUG
-		DMSG(Could not retrieve DLL handle!, GetModuleHandle);
+		DTRACE(L"GetModuleHandle", L"Could not retrieve DLL handle\nlast-error 0x%x\n", GetLastError());
 #endif
-		return 1;
+		ret=RET_ERROR_MODULE;
+		goto end;
 	}
 	pfnThread = (PTHREAD_START_ROUTINE)GetProcAddress(hModule, "LoadLibraryW");
 	if(pfnThread == NULL)
 	{
 #ifdef _DEBUG
-		DMSG(Could not find address of LoadLibraryW!, GetProcAddress);
+		DTRACE(L"GetProcAddress", L"Could not find address of LoadLibraryW\nlast-error 0x%x\n", GetLastError());
 #endif
-		return 1;
+		ret=RET_ERROR_GETPROCADDR;
+		goto end;
 	}
 
 	// Create remote thread that calls LoadLibraryW
@@ -145,31 +157,45 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	if(hThread == NULL)
 	{
 #ifdef _DEBUG
-		DMSG(Could not start remote thread!, CreateRemoteThread);
+		DTRACE(L"CreateRemoteThread", L"Could not start remote thread\nlast-error 0x%x\n", GetLastError());
+
 #endif
-		return 1;
+		ret=RET_ERROR_CREATERTHREAD;
+		goto end;
 	}
 
 	// Wait for the remote thread to terminate
 	WaitForSingleObject(hThread, INFINITE);
+	if(!GetExitCodeThread(hThread, &dwExitCode))
+	{
+#ifdef _DEBUG
+		DTRACE(L"GetExitCodeThread", L"GetExitCodeThread failed\nlast-error 0x%x\n", GetLastError());
+#endif
+		ret=RET_ERROR_UNKNOWN;
+		goto end;
+	}
     
-	GetExitCodeThread(hThread, &dwExitCode);
+	ret=RET_OK; /* All Done */
 
+end:
 	// Free the remote memory that contained dll pathname
 	if(pMem != NULL)
 		VirtualFreeEx(pinfo.hProcess, pMem, 0, MEM_RELEASE);
 
 	if(hThread != NULL)
+	{
+		// Resume base process thread
+		ResumeThread(pinfo.hThread);
+
+		// Clean everything else up
+		CloseHandle(pinfo.hThread);
+		CloseHandle(pinfo.hProcess);
 		CloseHandle(hThread);
+	}
 
-	// Resume base process thread
-	ResumeThread(pinfo.hThread);
+	RetValue=bOk(ret); /* Assign 0 if no error occured 1 otherwise */
 
-	// Clean everything else up
-	CloseHandle(pinfo.hThread);
-	CloseHandle(pinfo.hProcess);
-
-	return 0;
+	return RetValue;
 }
 
 /*********************************************************
@@ -196,11 +222,11 @@ BOOL FileExist(const wchar_t* szFile)
 }
 
 
-/*********************************************************
-*  CreateDirs                                            *
-*  Returns true on success, false otherwise.             *
-*  Type:  BOOL                                           *
-*********************************************************/
+/****************************************************************
+*  CreateDirs                                                   *
+*  Returns true on success directory creation, false otherwise. *
+*  Type:  BOOL                                                  *
+****************************************************************/
 BOOL CreateDirs(const wchar_t* szPath)
 {
 	wchar_t DirName[MAX_PATH]= { 0 };

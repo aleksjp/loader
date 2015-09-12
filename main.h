@@ -1,7 +1,30 @@
 #ifndef MAIN_H_INC
 #define MAIN_H_INC
 
-enum {MAXLEN=512}; /* max length of strings */
+/* constants */
+
+#define EXE_NAME L"iw5mp.exe"
+#define DLL_NAME L"steam_api.dll"
+
+enum{MAXLEN=512}; /* max length of strings */
+
+/* return type error definition and macro to check the exit statuss */
+typedef enum _BaseErr
+{
+	RET_OK = 0,
+	RET_ERROR_FILE,
+	RET_ERROR_DIRECTORY,
+	RET_ERROR_RESOURCE,
+	RET_ERROR_CREATE,
+	RET_ERROR_VALLOC,
+	RET_ERROR_WRITE,
+	RET_ERROR_MODULE,
+	RET_ERROR_GETPROCADDR,
+	RET_ERROR_CREATERTHREAD,
+	RET_ERROR_UNKNOWN
+} BaseErr;
+
+#define bOk(ret) (ret > 0 && ret < 11)
 
 /* simple MessageBox macro for debugging purpose */
 #define DMSG(A, B) { MessageBox(NULL, L#A, L#B, MB_ICONINFORMATION | MB_OK); }
