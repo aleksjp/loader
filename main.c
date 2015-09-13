@@ -1,11 +1,30 @@
+// (c) Alexandar, 2015 alexjptr@gmail.com
 #include <windows.h>
 #include <stdio.h>
 #include <wchar.h>
 #include "main.h"
 #include "resource.h"
 
-
+#pragma warning(suppress: 28251)
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+{
+	int ret;
+	UNREFERENCED_PARAMETER(hInstance);
+	UNREFERENCED_PARAMETER(hPrevInstance);
+	UNREFERENCED_PARAMETER(lpCmdLine);
+	UNREFERENCED_PARAMETER(nShowCmd);
+	/* integer types and enum types can be freely assigned to each other */
+	ret=LoadFrom(EXE_NAME, DLL_NAME);
+	return ret=bOk(ret);
+}
+
+/**************************************************
+*   LoadFrom                                      *
+*   The return value is an integer constant.     *
+*   0 on successful completion, 1 to 10 otherwise *
+*   Type:  Basefn                                 *
+***************************************************/
+Basefn LoadFrom(const wchar_t *pszExe, const wchar_t *pszLib )
 {
 
 	wchar_t szExePath[MAX_PATH]= { 0 };
@@ -14,8 +33,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	STARTUPINFO sinfo= { 0 };
 	PROCESS_INFORMATION pinfo;
 
-	BaseErr ret; // Error status
-	int RetValue=0; // Function return value
+	Basefn ret=RET_OK; // Exit status
 	HMODULE hModule; // kernel32 module handle
 	LPVOID pMem=NULL; // Allocated library string and command line parameters
 	DWORD cbLen=0;    // Library string length
@@ -29,14 +47,14 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	if(GetCurrentDirectory(MAX_PATH, szExePath))
 	{
 		wcscat_s(szExePath, MAX_PATH, L"\\");
-		wcscat_s(szExePath, MAX_PATH, EXE_NAME);
+		wcscat_s(szExePath, MAX_PATH, pszExe);
 	}
 
 	// Check for a file existence
 	if((GetFileAttributes(szExePath) == INVALID_FILE_ATTRIBUTES))
 	{
 #ifdef _DEBUG
-		DTRACE(L"File Not Found!", L"Could not find " EXE_NAME L"\nMake sure that it actually exists, and try again.");
+		DTRACE(L"File Not Found!", L"Could not find %s \nMake sure that it actually exists, and try again.", pszExe);
 #endif
 		ret=RET_ERROR_FILE;
 		goto end;
@@ -80,7 +98,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	// Build a full path to DLL file
 	if(GetCurrentDirectory(MAX_PATH, szLibFile))
-		swprintf_s(szLibFile, ARRAY_LEN(szLibFile), L"%s\\%s", szLibFile, DLL_NAME);
+		swprintf_s(szLibFile, ARRAY_LEN(szLibFile), L"%s\\%s", szLibFile, pszLib);
 
 	// Extract DLL from resource and write to a file
 	if(!ExtractFromResource(IDR_BIN2, L"BIN", szLibFile))
@@ -175,9 +193,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		goto end;
 	}
     
-	ret=RET_OK; /* All Done */
-
-end:
 	// Free the remote memory that contained dll pathname
 	if(pMem != NULL)
 		VirtualFreeEx(pinfo.hProcess, pMem, 0, MEM_RELEASE);
@@ -193,9 +208,9 @@ end:
 		CloseHandle(hThread);
 	}
 
-	RetValue=bOk(ret); /* Assign 0 if no error occured 1 otherwise */
+end:
 
-	return RetValue;
+	return ret;
 }
 
 /*********************************************************

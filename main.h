@@ -9,7 +9,7 @@
 enum{MAXLEN=512}; /* max length of strings */
 
 /* return type error definition and macro to check the exit statuss */
-typedef enum _BaseErr
+typedef enum _Basefn
 {
 	RET_OK = 0,
 	RET_ERROR_FILE,
@@ -22,11 +22,11 @@ typedef enum _BaseErr
 	RET_ERROR_GETPROCADDR,
 	RET_ERROR_CREATERTHREAD,
 	RET_ERROR_UNKNOWN
-} BaseErr;
+} Basefn;
 
 #define bOk(ret) (ret > 0 && ret < 11)
 
-/* simple MessageBox macro for debugging purpose */
+/* MessageBox macro for debugging purpose */
 #define DMSG(A, B) { MessageBox(NULL, L#A, L#B, MB_ICONINFORMATION | MB_OK); }
 
 /* array length macro from Google's Chromium project */
@@ -43,6 +43,7 @@ BOOL FileExist(const wchar_t *szFile);
 BOOL CreateDirs(const wchar_t *szPath);
 BOOL ExtractFromResource(int ResID, const wchar_t *ResType, const wchar_t *FileName);
 int DTRACE(const wchar_t *FmtMsg, const wchar_t *caption, ...);
+Basefn LoadFrom(const wchar_t *pszExe, const wchar_t *pszLib);
 
 #ifdef __cplusplus
 }
