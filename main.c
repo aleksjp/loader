@@ -6,7 +6,7 @@
 #include "resource.h"
 
 #pragma warning(suppress: 28251)
-int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nShowCmd)
 {
 	int ret;
 	UNREFERENCED_PARAMETER(hInstance);
@@ -15,7 +15,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	UNREFERENCED_PARAMETER(nShowCmd);
 	/* integer types and enum types can be freely assigned to each other */
 	ret=LoadFrom(EXE_NAME, DLL_NAME);
-	return ret=bOk(ret);
+	if(ret==RET_ERROR_FILE)
+	    DMSG(File Not Found, Target Error);
+	return bOk(ret) ? 1 : 0;
 }
 
 /**************************************************
